@@ -12,3 +12,6 @@ java -jar swe622-fss.jar /Downloads/download.jpeg
 Create environmental variable
 go to terminal and give the following command
 export PA1_SERVER="localhost:8000"
+
+Create an environmental variable for file path(put some path in the " "
+export FSS_ROOT="  "
