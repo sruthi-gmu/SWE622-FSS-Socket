@@ -9,8 +9,8 @@ public class FileServer {
         ServerSocket serverSocket = new ServerSocket(portNumber);
         while(true) {
             Socket socketConnection = serverSocket.accept();
-            FileServerAgent newCOnnection = new FileServerAgent(socketConnection);
-            newCOnnection.start();
+            FileServerAgent newConnection = new FileServerAgent(socketConnection);
+            newConnection.start();
         }
 
     }
