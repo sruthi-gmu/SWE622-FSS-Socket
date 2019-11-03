@@ -20,10 +20,6 @@ public class FileServerAgent extends Thread {
     }
 
     public void processRequest() throws IOException {
-
-//        String fssRoot = System.getenv("FSS_ROOT");
-
-        System.out.println("Client is connected");
         InputStream inFromClient = socketConnection.getInputStream();
         OutputStream outToClient = socketConnection.getOutputStream();
 

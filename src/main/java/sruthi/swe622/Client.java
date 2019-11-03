@@ -26,7 +26,6 @@ public class Client {
                 serverFileLengthBuilder.append((char) byteRead);
             }
             int serverFileLength = Integer.parseInt(serverFileLengthBuilder.toString());
-            System.out.println("serverFileLength = " + serverFileLength);
 
             RandomAccessFile inFile = new RandomAccessFile(pathOnClient, "r");
             inFile.seek(serverFileLength);
@@ -58,8 +57,6 @@ public class Client {
         outToServer.writeBytes("=");
 
         long clientFileLength = new File(pathOnClient).length();
-        System.out.println("clientFileLength = " + clientFileLength);
-
         outToServer.writeBytes(String.valueOf(clientFileLength));
         outToServer.writeBytes(";");
         outToServer.writeBytes(pathOnServer);
@@ -72,7 +69,6 @@ public class Client {
             serverFileLengthBuilder.append((char) byteRead);
         }
         int serverFileLength = Integer.parseInt(serverFileLengthBuilder.toString());
-        System.out.println("serverFileLength = " + serverFileLength);
 
         boolean append = false;
         if (clientFileLength < serverFileLength) {
@@ -143,7 +139,6 @@ public class Client {
         outToServer.writeBytes(";");
 
         InputStream inFromServer = clientSocket.getInputStream();
-        DataOutputStream out = new DataOutputStream(System.out);
 
         int byteRead;
         StringBuilder resultBuilder = new StringBuilder();
