@@ -35,22 +35,30 @@ public class FileServerAgent extends Thread {
         String option = optionBuilder.toString();
 
         if (option.equals("upload")) {
-            Boolean append = true;
-            StringBuilder status = new StringBuilder();
+            StringBuilder clientFileLengthBuilder = new StringBuilder();
             while ((byteRead = inFromClient.read()) != ';') {
-                status.append((char) byteRead);
+                clientFileLengthBuilder.append((char) byteRead);
             }
-            System.out.println(status);
-            if(status.toString().equals("new")){
-                append = false;
-            }
-            StringBuilder fileName = new StringBuilder();
-            while ((byteRead = inFromClient.read()) != ';') {
-                fileName.append((char) byteRead);
-            }
-            System.out.println(append);
+            long clientFileLength = Long.parseLong(clientFileLengthBuilder.toString());
 
-            OutputStream outToFile = new FileOutputStream(fileName.toString(),append);
+            StringBuilder pathOnServerBuilder = new StringBuilder();
+            while ((byteRead = inFromClient.read()) != ';') {
+                pathOnServerBuilder.append((char) byteRead);
+            }
+            String pathOnServer = pathOnServerBuilder.toString();
+
+            File serverFile = new File(pathOnServer);
+            Boolean append = false;
+            long serverFileLength = serverFile.length();
+            if (serverFile.exists()) {
+                if (serverFileLength < clientFileLength) {
+                    append = true;
+                }
+            }
+            outToClient.write(String.valueOf(serverFileLength).getBytes());
+            outToClient.write(";".getBytes());
+
+            OutputStream outToFile = new FileOutputStream(pathOnServer, append);
             while ((byteRead = inFromClient.read()) != -1) {
                 outToFile.write(byteRead);
             }
@@ -58,28 +66,33 @@ public class FileServerAgent extends Thread {
             outToClient.close();
 
         } else if (option.equals("download")) {
-            StringBuilder positionBuider = new StringBuilder();
-            while ((byteRead = inFromClient.read()) != ';') {
-                positionBuider.append((char) byteRead);
-            }
-            long position = Long.parseLong(positionBuider.toString());
-            System.out.println("Send to client from position: " + position);
 
-            StringBuilder fileName = new StringBuilder();
+            StringBuilder clientLengthBuilder = new StringBuilder();
             while ((byteRead = inFromClient.read()) != ';') {
-                fileName.append((char) byteRead);
+                clientLengthBuilder.append((char) byteRead);
             }
+            long clientFileLength = Long.parseLong(clientLengthBuilder.toString());
+
+            StringBuilder serverFilePathBuilder = new StringBuilder();
+            while ((byteRead = inFromClient.read()) != ';') {
+                serverFilePathBuilder.append((char) byteRead);
+            }
+            String serverFilePath = serverFilePathBuilder.toString();
+
+            File serverFile = new File(serverFilePath);
+            outToClient.write(String.valueOf(serverFile.length()).getBytes());
+            outToClient.write(";".getBytes());
+
             try {
                 outToClient.write("Success".getBytes());
                 outToClient.write("=".getBytes());
-                RandomAccessFile inFile = new RandomAccessFile(fileName.toString(),"r");
-                inFile.seek(position);
+                RandomAccessFile inFile = new RandomAccessFile(serverFilePath, "r");
+                inFile.seek(clientFileLength);
                 while ((byteRead = inFile.read()) != -1) {
                     outToClient.write(byteRead);
                 }
 
             } catch (Exception e) {
-                System.out.println(e.getMessage());
                 outToClient.write("Failure".getBytes());
                 outToClient.write("=".getBytes());
             }
@@ -136,14 +149,12 @@ public class FileServerAgent extends Thread {
             }
             try {
                 File dir = new File(directoryName.toString());
-                System.out.println("The file is " + dir);
                 if (dir.exists()) {
                     String[] dirlist = dir.list();
                     if (dirlist.length == 0) {
                         outToClient.write("Success".getBytes());
                         dir.delete();
-                    }
-                    else {
+                    } else {
                         outToClient.write("NonEmpty".getBytes());
                     }
                 }

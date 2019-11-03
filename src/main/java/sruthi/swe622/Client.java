@@ -10,47 +10,44 @@ public class Client {
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
         outToServer.writeBytes("upload");
         outToServer.writeBytes("=");
-        String positionFile = pathOnClient + ".pos";
-        File positionFileName = new File(positionFile);
-        int position = 0;
+        File clientFile = new File(pathOnClient);
+        long clientFileLength = clientFile.length();
 
         try {
-            if (positionFileName.exists()) {
-                FileInputStream posStream = new FileInputStream(positionFileName);
-                position = posStream.read() - 1;
-            }
-            if (position == 0) {
-                outToServer.writeBytes("new");
-                outToServer.writeBytes(";");
-
-            } else {
-                outToServer.writeBytes("continue");
-                outToServer.writeBytes(";");
-            }
+            outToServer.writeBytes(String.valueOf(clientFileLength));
+            outToServer.writeBytes(";");
             outToServer.writeBytes(pathOnServer);
             outToServer.writeBytes(";");
 
-            RandomAccessFile inFile = new RandomAccessFile(pathOnClient, "r");
-            RandomAccessFile out = new RandomAccessFile(positionFile, "rw");
-            int byteRead, counter = 0;
-            inFile.seek(position);
-            while ((byteRead = inFile.read()) != -1) {
-                outToServer.write(byteRead);
-                counter++;
-                out.seek(0);
-                out.write(counter);
-
+            InputStream inFromServer = new BufferedInputStream(clientSocket.getInputStream());
+            int byteRead;
+            StringBuilder serverFileLengthBuilder = new StringBuilder();
+            while ((byteRead = inFromServer.read()) != ';') {
+                serverFileLengthBuilder.append((char) byteRead);
             }
+            int serverFileLength = Integer.parseInt(serverFileLengthBuilder.toString());
+            System.out.println("serverFileLength = " + serverFileLength);
 
-            out.close();
+            RandomAccessFile inFile = new RandomAccessFile(pathOnClient, "r");
+            inFile.seek(serverFileLength);
+            int length;
+            byte[] buffer = new byte[10 * 1024];
+            while ((length = inFile.read(buffer)) > 0) {
+                outToServer.write(buffer, 0, length);
+                serverFileLength += length;
+                float v = (float) serverFileLength / clientFileLength;
+                long percentage = (long) (v * 100);
+                System.out.print("\rUploading... " + percentage + "%");
+            }
+            System.out.println();
+            inFile.close();
+            outToServer.close();
             System.out.println("The file is successfully uploaded ");
 
         } catch (Exception e) {
             System.out.println("The file path on client does not exist");
 
         }
-
-
     }
 
     public static void downloadFile(String pathOnServer, String pathOnClient) throws IOException {
@@ -60,35 +57,28 @@ public class Client {
         outToServer.writeBytes("download");
         outToServer.writeBytes("=");
 
-        File positionFile = new File(pathOnClient + ".pos");
-        long position = 0;
-        if (positionFile.exists()) {
-            BufferedReader posFileReader = new BufferedReader(new FileReader(positionFile));
+        long clientFileLength = new File(pathOnClient).length();
+        System.out.println("clientFileLength = " + clientFileLength);
 
-            String posFromFile = posFileReader.readLine();
-            System.out.println("posFromFile = [" + posFromFile + "]");
-
-            position = Long.parseLong(posFromFile);
-            System.out.println("Position to continue download from: " + position);
-            posFileReader.close();
-        }
-
-        Boolean append;
-        if (position == 0) {
-            append = false;
-        } else {
-            append = true;
-        }
-
-        outToServer.writeBytes(String.valueOf(position));
+        outToServer.writeBytes(String.valueOf(clientFileLength));
         outToServer.writeBytes(";");
         outToServer.writeBytes(pathOnServer);
         outToServer.writeBytes(";");
 
         InputStream inFromServer = new BufferedInputStream(clientSocket.getInputStream());
-        OutputStream outToFile = new FileOutputStream(pathOnClient, append);
-
         int byteRead;
+        StringBuilder serverFileLengthBuilder = new StringBuilder();
+        while ((byteRead = inFromServer.read()) != ';') {
+            serverFileLengthBuilder.append((char) byteRead);
+        }
+        int serverFileLength = Integer.parseInt(serverFileLengthBuilder.toString());
+        System.out.println("serverFileLength = " + serverFileLength);
+
+        boolean append = false;
+        if (clientFileLength < serverFileLength) {
+            append = true;
+        }
+
         StringBuilder resultBuilder = new StringBuilder();
         while ((byteRead = inFromServer.read()) != '=') {
             resultBuilder.append((char) byteRead);
@@ -96,17 +86,20 @@ public class Client {
         String result = resultBuilder.toString();
 
         if (result.equals("Success")) {
+            OutputStream outToFile = new FileOutputStream(pathOnClient, append);
             int length;
             byte[] buffer = new byte[10 * 1024];
             while ((length = inFromServer.read(buffer)) > 0) {
                 outToFile.write(buffer, 0, length);
-                position += length;
-                PrintWriter writer = new PrintWriter(positionFile);
-                writer.print(String.valueOf(position));
-                writer.close();
+                clientFileLength += length;
+
+                float v = (float) clientFileLength / serverFileLength;
+                long percentage = (long) (v * 100);
+                System.out.print("\rDownloading... " + percentage + "%");
             }
+            System.out.println();
             System.out.println("The file is successfully downloaded ");
-            positionFile.delete();
+            outToFile.close();
         } else {
             System.err.println("The file doesn't exist on the server");
             System.exit(-1);
@@ -238,7 +231,6 @@ public class Client {
 
         }
         String result = resultBuilder.toString();
-        System.out.println(result);
         if (result.equals("shutdown")) {
             System.out.println("The file server is shutdown");
 
