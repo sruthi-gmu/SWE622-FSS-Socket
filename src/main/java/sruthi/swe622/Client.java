@@ -29,6 +29,9 @@ public class Client {
 
             RandomAccessFile inFile = new RandomAccessFile(pathOnClient, "r");
             inFile.seek(serverFileLength);
+            if(serverFileLength > 0) {
+                System.out.println("Resuming upload");
+            }
             int length;
             byte[] buffer = new byte[10 * 1024];
             while ((length = inFile.read(buffer)) > 0) {
@@ -55,10 +58,6 @@ public class Client {
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
         outToServer.writeBytes("download");
         outToServer.writeBytes("=");
-
-        long clientFileLength = new File(pathOnClient).length();
-        outToServer.writeBytes(String.valueOf(clientFileLength));
-        outToServer.writeBytes(";");
         outToServer.writeBytes(pathOnServer);
         outToServer.writeBytes(";");
 
@@ -70,10 +69,16 @@ public class Client {
         }
         int serverFileLength = Integer.parseInt(serverFileLengthBuilder.toString());
 
+        long clientFileLength = new File(pathOnClient).length();
         boolean append = false;
-        if (clientFileLength < serverFileLength) {
+        if (clientFileLength == serverFileLength) {
+            clientFileLength = 0;
+        } else if (clientFileLength < serverFileLength) {
             append = true;
         }
+
+        outToServer.writeBytes(String.valueOf(clientFileLength));
+        outToServer.writeBytes(";");
 
         StringBuilder resultBuilder = new StringBuilder();
         while ((byteRead = inFromServer.read()) != '=') {
@@ -83,6 +88,9 @@ public class Client {
 
         if (result.equals("Success")) {
             OutputStream outToFile = new FileOutputStream(pathOnClient, append);
+            if(clientFileLength > 0) {
+                System.out.println("Resuming download");
+            }
             int length;
             byte[] buffer = new byte[10 * 1024];
             while ((length = inFromServer.read(buffer)) > 0) {

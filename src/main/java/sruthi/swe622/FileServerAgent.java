@@ -2,6 +2,8 @@ package sruthi.swe622;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class FileServerAgent extends Thread {
     Socket socketConnection;
@@ -22,6 +24,7 @@ public class FileServerAgent extends Thread {
     public void processRequest() throws IOException {
         InputStream inFromClient = socketConnection.getInputStream();
         OutputStream outToClient = socketConnection.getOutputStream();
+        String absolutePath = Paths.get("").toAbsolutePath().toString();
 
         int byteRead;
         StringBuilder optionBuilder = new StringBuilder();
@@ -41,7 +44,9 @@ public class FileServerAgent extends Thread {
             while ((byteRead = inFromClient.read()) != ';') {
                 pathOnServerBuilder.append((char) byteRead);
             }
+
             String pathOnServer = pathOnServerBuilder.toString();
+            pathOnServer = absolutePath + pathOnServer;
 
             File serverFile = new File(pathOnServer);
             Boolean append = false;
@@ -49,6 +54,9 @@ public class FileServerAgent extends Thread {
             if (serverFile.exists()) {
                 if (serverFileLength < clientFileLength) {
                     append = true;
+                }
+                else if(serverFileLength == clientFileLength){
+                    serverFileLength = 0;
                 }
             }
             outToClient.write(String.valueOf(serverFileLength).getBytes());
@@ -63,21 +71,22 @@ public class FileServerAgent extends Thread {
 
         } else if (option.equals("download")) {
 
-            StringBuilder clientLengthBuilder = new StringBuilder();
-            while ((byteRead = inFromClient.read()) != ';') {
-                clientLengthBuilder.append((char) byteRead);
-            }
-            long clientFileLength = Long.parseLong(clientLengthBuilder.toString());
-
             StringBuilder serverFilePathBuilder = new StringBuilder();
             while ((byteRead = inFromClient.read()) != ';') {
                 serverFilePathBuilder.append((char) byteRead);
             }
             String serverFilePath = serverFilePathBuilder.toString();
+            serverFilePath = absolutePath + serverFilePath;
 
             File serverFile = new File(serverFilePath);
             outToClient.write(String.valueOf(serverFile.length()).getBytes());
             outToClient.write(";".getBytes());
+
+            StringBuilder clientLengthBuilder = new StringBuilder();
+            while ((byteRead = inFromClient.read()) != ';') {
+                clientLengthBuilder.append((char) byteRead);
+            }
+            long clientFileLength = Long.parseLong(clientLengthBuilder.toString());
 
             try {
                 outToClient.write("Success".getBytes());
@@ -95,16 +104,19 @@ public class FileServerAgent extends Thread {
             outToClient.flush();
             outToClient.close();
         } else if (option.equals("dir")) {
-            StringBuilder directoryName = new StringBuilder();
+            StringBuilder directoryNameBuilder = new StringBuilder();
             while ((byteRead = inFromClient.read()) != ';') {
-                directoryName.append((char) byteRead);
+                directoryNameBuilder.append((char) byteRead);
             }
+            String directoryName = directoryNameBuilder.toString();
+            directoryName = absolutePath+directoryName;
+
             try {
-                File dir = new File(directoryName.toString());
+                File dir = new File(directoryName);
                 if (dir.exists()) {
                     outToClient.write("Success".getBytes());
                     outToClient.write("=".getBytes());
-                    File[] list = new File(directoryName.toString()).listFiles();
+                    File[] list = new File(directoryName).listFiles();
                     for (int i = 0; i < list.length; i++) {
                         outToClient.write(i);
                         String file = list[i].toString();
@@ -119,12 +131,14 @@ public class FileServerAgent extends Thread {
             outToClient.flush();
             outToClient.close();
         } else if (option.equals("mkdir")) {
-            StringBuilder directoryName = new StringBuilder();
+            StringBuilder directoryNameBuilder = new StringBuilder();
             while ((byteRead = inFromClient.read()) != ';') {
-                directoryName.append((char) byteRead);
+                directoryNameBuilder.append((char) byteRead);
             }
+            String directoryName = directoryNameBuilder.toString();
+            directoryName = absolutePath + directoryName;
             try {
-                File newDir = new File(directoryName.toString());
+                File newDir = new File(directoryName);
                 if (!newDir.exists()) {
                     outToClient.write("Success".getBytes());
                     newDir.mkdir();
@@ -139,12 +153,14 @@ public class FileServerAgent extends Thread {
             outToClient.flush();
             outToClient.close();
         } else if (option.equals("rmdir")) {
-            StringBuilder directoryName = new StringBuilder();
+            StringBuilder directoryNameBuilder = new StringBuilder();
             while ((byteRead = inFromClient.read()) != ';') {
-                directoryName.append((char) byteRead);
+                directoryNameBuilder.append((char) byteRead);
             }
+            String directoryName = directoryNameBuilder.toString();
+            directoryName = absolutePath + directoryName;
             try {
-                File dir = new File(directoryName.toString());
+                File dir = new File(directoryName);
                 if (dir.exists()) {
                     String[] dirlist = dir.list();
                     if (dirlist.length == 0) {
@@ -162,12 +178,14 @@ public class FileServerAgent extends Thread {
             outToClient.flush();
             outToClient.close();
         } else if (option.equals("rm")) {
-            StringBuilder fileName = new StringBuilder();
+            StringBuilder fileNameBuilder = new StringBuilder();
             while ((byteRead = inFromClient.read()) != ';') {
-                fileName.append((char) byteRead);
+                fileNameBuilder.append((char) byteRead);
             }
+            String fileName = fileNameBuilder.toString();
+            fileName = absolutePath + fileName;
             try {
-                File file = new File(fileName.toString());
+                File file = new File(fileName);
                 if (file.exists()) {
                     outToClient.write("Success".getBytes());
                     file.delete();
