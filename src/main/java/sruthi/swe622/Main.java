@@ -12,7 +12,6 @@ public class Main {
             if(args[1].equals("upload")) {
                 String pathOnClient = args[2];
                 String pathOnServer = args[3];
-
                 Client.uploadFile(pathOnClient,pathOnServer);
             }
             else if(args[1].equals("download")) {
